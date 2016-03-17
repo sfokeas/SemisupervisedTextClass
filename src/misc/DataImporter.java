@@ -53,15 +53,14 @@ public class DataImporter {
         return new SerialPipes(pipeList);
     }
 
-
     public InstanceList importRaw() {
         //TODO
         return null;
     }
 
     public InstanceList importPreprocessed() throws IOException {
-        buildPipePreprocessed();
-        InstanceList instances = readFile(new File(config.getProperty("data.input_file")));
+        pipe = buildPipePreprocessed();
+        InstanceList instances = readFile(new File(config.getProperty("data.input")));
         return instances;
     }
 
@@ -70,16 +69,20 @@ public class DataImporter {
         // Create the instance list and open the input file
         //
         String lineRegex = "^(\\S*)[\\s,]*(\\S*)[\\s,]*(.*)$";
-
         Reader fileReader;
-
         fileReader = new InputStreamReader(new FileInputStream(inputFile));
         CsvIterator iterator = new CsvIterator(fileReader, Pattern.compile(lineRegex), 3, 2, 1);
-
         InstanceList instances = new InstanceList(pipe);
-
         instances.addThruPipe(iterator);
+        System.out.println("finished creating instances");
 
+        //serialize the InstanceList for later reference
+        FileOutputStream fileOut = new FileOutputStream("instances.ser");
+        ObjectOutputStream out = new ObjectOutputStream(fileOut);
+        out.writeObject(instances);
+        out.close();
+        fileOut.close();
+        System.out.println("finished Serializing instances");
         return instances;
     }
 
