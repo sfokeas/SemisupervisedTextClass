@@ -1,13 +1,14 @@
 package classifiers;
 
-import libsvm.*;
-import misc.*;
+import libsvm.svm;
+import libsvm.svm_model;
+import libsvm.svm_parameter;
+import libsvm.svm_problem;
+import misc.Config;
 
-import java.awt.*;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.util.StringTokenizer;
 
 /**
  * Created by sotos on 3/9/16.
@@ -17,47 +18,70 @@ public class SVM {
     svm_problem prob;
     svm_parameter param;
 
+    public SVM(Config conf, svm_problem prob) {
+        config = conf;
+        this.prob = prob;
+        param = new svm_parameter();
+    }
+
+    private void writeResults(String filename, double[] x) throws IOException {
+        BufferedWriter outputWriter = null;
+        outputWriter = new BufferedWriter(new FileWriter(filename));
+        outputWriter.write("real\tpredicted\n");
+        for (int i = 0; i < x.length; i++) {
+            outputWriter.write(Double.toString(prob.y[i])+"\t"+Double.toString(x[i])+"\n");
+        }
+        outputWriter.flush();
+        outputWriter.close();
+    }
+
     /**
-     *
      * @param nr_fold
      * @return accuracy percentage (e.g. 0.6)
      */
-    private double do_cross_validation(int nr_fold)
-    {
+    private double do_cross_validation(int nr_fold) {
         int i;
         int total_correct = 0;
         double total_error = 0;
         double sumv = 0, sumy = 0, sumvv = 0, sumyy = 0, sumvy = 0;
         double[] target = new double[prob.l];
 
-        svm.svm_cross_validation(prob,param,nr_fold,target); //the results are return in the target variable?
-        for(i=0;i<prob.l;i++)
-            if(target[i] == prob.y[i])
+        svm.svm_cross_validation(prob, param, nr_fold, target); //the results are return in the target variable?
+        for (i = 0; i < prob.l; i++)
+            if (target[i] == prob.y[i])
                 ++total_correct;
-        System.out.print("Cross Validation Accuracy = "+100.0*total_correct/prob.l+"%\n");
-        System.out.println(target);
-        System.out.print("-_-_-_-");
-        System.out.println(target.toString());
+        System.out.print("Cross Validation Accuracy = " + 100.0 * total_correct / prob.l + "%\n");
+        try {
+            writeResults("testOutput", target);
+        } catch (IOException e) {
+            System.err.println(e.fillInStackTrace());
+        }
         //TODO we shouldn't measure accuracy like this in multiclass cases. should use Balanced Error Rate (BER).
         //http://icapeople.epfl.ch/mekhan/pcml15/project-2/objectDetection.html
-        return total_correct/prob.l;
+        return total_correct / prob.l;
     }
 
-    public void loadFile(){
-
-    }
-
-    public void loadFile(String filename){
+    public void loadFile() {
 
     }
 
-    public SVM(Config conf,svm_problem prob){
-        config = conf;
-        this.prob = prob;
-        param = new svm_parameter();
+    public void loadFile(String filename) {
+
     }
 
-    public void runSVM(){
+
+    //tunes C and g and returns the maximum
+    //you can call it inside runSVM
+//    public  tuneParameters(){
+//        //call docrossvalidation
+//    }
+
+//
+    //check this in svm_predict private static void predict(BufferedReader input, DataOutputStream output, svm_model model, int predict_probability) throws IOException
+
+    // check svm_train.readProblem() for a function to insert a problem from a file
+
+    public void runSVM() {
 
         ///svm train parameters
         //default parameters
@@ -83,10 +107,9 @@ public class SVM {
         svm_model model = null;
 
         // train model
-        if(config.getProperty("clf.crossValidation").trim().equals("true")){
+        if (config.getProperty("clf.crossValidation").trim().equals("true")) {
             do_cross_validation(10);
-        }
-        else{
+        } else {
             model = svm.svm_train(prob, param);
         }
 
@@ -125,16 +148,4 @@ public class SVM {
 //
 //        double d = svm.svm_predict(model, x);
     }
-
-
-    //tunes C and g and returns the maximum
-    //you can call it inside runSVM
-//    public  tuneParameters(){
-//        //call docrossvalidation
-//    }
-
-//
-    //check this in svm_predict private static void predict(BufferedReader input, DataOutputStream output, svm_model model, int predict_probability) throws IOException
-
-    // check svm_train.readProblem() for a function to insert a problem from a file
 }

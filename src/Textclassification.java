@@ -36,6 +36,7 @@ public class Textclassification {
             //raw
             //specify a saved file
             //option compare?//compare many models together
+            final long startTime = System.currentTimeMillis();
 
             svm_problem problem = null;
             Config config = new Config(args[0]);
@@ -62,6 +63,8 @@ public class Textclassification {
             SVM svm = new SVM(config, problem);
             svm.runSVM(); //saves output to the specified file in config
 
+            final long endTime = System.currentTimeMillis();
+            System.out.println("Total execution time: " + (endTime - startTime) );
         } catch (IOException e) {
             System.err.print(e.getMessage());
         }
