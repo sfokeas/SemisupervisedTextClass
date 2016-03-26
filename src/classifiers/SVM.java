@@ -9,6 +9,11 @@ import misc.Config;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.ArrayList;
 
 /**
  * Created by sotos on 3/9/16.
@@ -24,57 +29,160 @@ public class SVM {
         param = new svm_parameter();
     }
 
-    private void writeResults(String filename, double[] x) throws IOException {
-        BufferedWriter outputWriter = null;
-        outputWriter = new BufferedWriter(new FileWriter(filename));
-        outputWriter.write("real\tpredicted\n");
-        for (int i = 0; i < x.length; i++) {
-            outputWriter.write(Double.toString(prob.y[i])+"\t"+Double.toString(x[i])+"\n");
+    private static void GenerateLogSpace(int min, int max, int logBins) {
+        double logarithmicBase = Math.E;
+        double logMin = Math.log(min);
+        double logMax = Math.log(max);
+        double delta = (logMax - logMin) / logBins;
+        int[] indexes = new int[logBins + 1];
+        double accDelta = 0;
+        float[] v = new float[logBins];
+        for (int i = 0; i <= logBins; ++i) {
+            v[i] = (float) Math.pow(logarithmicBase, logMin + accDelta);
+            accDelta += delta;// accDelta = delta * i
         }
-        outputWriter.flush();
-        outputWriter.close();
+    }
+
+    private void writeResults(double[] predicted) {
+        try {
+
+            Path p = Paths.get(config.getProperty("data.input"));
+            String inputFilename = p.getFileName().toString();
+            BufferedWriter rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                    + inputFilename
+                    + "_" + config.getProperty("data.model")
+                    + "_C_" + param.C
+                    + "_predictedValues"));
+            BufferedWriter measurementsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                    + inputFilename
+                    + "_" + config.getProperty("data.model")
+                    + "_C_" + param.C
+                    + "_statistics"));
+
+            //calculate and write quality of predictions measurements
+            ArrayList<Double> classes = findClasess(); //TODO if number of classes in config file is not set
+            double[][] confusionMatrix = new double[classes.size()][classes.size()]; //rows are the predictions, columns are true values
+            //initialize confusionMatrix with zero
+            for (int i = 0; i < classes.size(); i++) {
+                for (int j = 0; j < classes.size(); j++) {
+                    confusionMatrix[i][j] = 0;
+                }
+            }
+            for (int i = 0; i < prob.l; i++) {
+                confusionMatrix[classes.indexOf(predicted[i])][classes.indexOf(prob.y[i])]++;
+            }
+
+            //calculate precision, recall and F-score, BAC for in class X / not in class X binary decisions.
+            for (int c = 0; c < classes.size(); c++) {
+                double truePos = confusionMatrix[c][c]; //true positives
+                double falsePos = 0, falseNeg = 0;
+                for (int i = 0; i < classes.size(); i++) {
+                    if (i == c) continue;
+                    falsePos += confusionMatrix[c][i];
+                    falseNeg += confusionMatrix[i][c];
+                }
+                double trueNeg = prob.l - truePos - falsePos - falseNeg; //tn = total - tp - fp - fn
+                double prec = truePos / (truePos + falsePos);
+                double recall = truePos / (truePos + falseNeg);
+                double fscore = (2 * prec * recall) / (prec + recall);
+                double specificity = trueNeg / (trueNeg + falsePos);
+                double sensitivity = truePos / (truePos + falseNeg);
+                double bac = (specificity + sensitivity) / 2;
+
+                NumberFormat formatter = new DecimalFormat("#.###");
+                measurementsWriter.write("Class " + classes.get(c) + "\t"
+                        + "precision: " + formatter.format(prec) + "\t"
+                        + "recall: " + formatter.format(recall) + "\t"
+                        + "F-Score: " + formatter.format(fscore) + "\t"
+                        + "specificity: " + formatter.format(specificity) + "\t"
+                        + "sensitivity: " + formatter.format(sensitivity) + "\t"
+                        + "BAC: " + formatter.format(bac) + "\n"
+                );
+            }
+//            precision
+//                    Precision = true_positive / (true_positive + false_positive)
+//            recall
+//
+//                    Recall = true_positive / (true_positive + false_negative)
+//
+//            fscore
+//
+//            F-score = 2 * Precision * Recall / (Precision + Recall)
+//
+//            bac
+//
+//            BAC (Balanced ACcuracy) = (Sensitivity + Specificity) / 2,
+//                    where Sensitivity = true_positive / (true_positive + false_negative)
+//            and   Specificity = true_negative / (true_negative + false_positive)
+//
+
+            //calculate accuracy
+            int total_correct = 0;
+            for (int i = 0; i < prob.l; i++)
+                if (predicted[i] == prob.y[i])
+                    ++total_correct;
+            measurementsWriter.write("General Cross Validation Accuracy = " + 100.0 * total_correct / prob.l + "%\n");
+            double accuracy = total_correct / prob.l;
+
+            //write predicted values
+            rawResultsWriter.write("real\tpredicted\n");
+            for (int i = 0; i < predicted.length; i++) {
+                rawResultsWriter.write(Double.toString(prob.y[i]) + "\t" + Double.toString(predicted[i]) + "\n");
+            }
+            rawResultsWriter.flush();
+            rawResultsWriter.close();
+            measurementsWriter.flush();
+            measurementsWriter.close();
+        } catch (IOException e) {
+            System.err.println(e.fillInStackTrace());
+            System.err.println(e.getMessage());
+        }
     }
 
     /**
-     * @param nr_fold
-     * @return accuracy percentage (e.g. 0.6)
+     * @param nr_fold (numbeer of folds)
+     * @return
      */
-    private double do_cross_validation(int nr_fold) {
-        int i;
-        int total_correct = 0;
-        double total_error = 0;
-        double sumv = 0, sumy = 0, sumvv = 0, sumyy = 0, sumvy = 0;
-        double[] target = new double[prob.l];
+    private void do_cross_validation(int nr_fold) {
 
-        svm.svm_cross_validation(prob, param, nr_fold, target); //the results are return in the target variable?
-        for (i = 0; i < prob.l; i++)
-            if (target[i] == prob.y[i])
-                ++total_correct;
-        System.out.print("Cross Validation Accuracy = " + 100.0 * total_correct / prob.l + "%\n");
-        try {
-            writeResults("testOutput", target);
-        } catch (IOException e) {
-            System.err.println(e.fillInStackTrace());
-        }
+        double[] target = new double[prob.l];
+        svm.svm_cross_validation(prob, param, nr_fold, target); //the results of cv are return in the target variable
+        writeResults(target);
         //TODO we shouldn't measure accuracy like this in multiclass cases. should use Balanced Error Rate (BER).
         //http://icapeople.epfl.ch/mekhan/pcml15/project-2/objectDetection.html
-        return total_correct / prob.l;
+    }
+
+    private ArrayList<Double> findClasess() {
+        ArrayList<Double> classes = new ArrayList<Double>();
+        for (int i = 0; i < prob.l; i++) {
+            if (!classes.contains(prob.y[i])) {
+                classes.add(prob.y[i]);
+            }
+        }
+        return classes;
     }
 
     public void loadFile() {
 
     }
 
+
+    //tunes C and g and returns the maximum
+    //you can call it inside runSVM
+    //notes: linear SVM has only one parameter, C.
+    //
+//    public  tuneParameters(){
+//        //call docrossvalidation
+//    }
+
+//    public tuneSVM(){
+//
+//    }
+
     public void loadFile(String filename) {
 
     }
 
-
-    //tunes C and g and returns the maximum
-    //you can call it inside runSVM
-//    public  tuneParameters(){
-//        //call docrossvalidation
-//    }
 
 //
     //check this in svm_predict private static void predict(BufferedReader input, DataOutputStream output, svm_model model, int predict_probability) throws IOException
@@ -107,8 +215,8 @@ public class SVM {
         svm_model model = null;
 
         // train model
-        if (config.getProperty("clf.crossValidation").trim().equals("true")) {
-            do_cross_validation(10);
+        if (config.getProperty("clf.crossValidation").trim().equalsIgnoreCase("true")) {
+            do_cross_validation(Integer.parseInt(config.getProperty("clf.crossValidation.folds")));
         } else {
             model = svm.svm_train(prob, param);
         }
