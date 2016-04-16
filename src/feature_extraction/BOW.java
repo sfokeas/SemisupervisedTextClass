@@ -90,6 +90,36 @@ public class BOW {
         return problem;
     }
 
+    /**
+     * similar to formatSparseMatrix, but has only 1 or 0 as features, corresponding to the presence or not of the
+     * @return
+     * @throws IOException
+     */
+    public svm_problem formatSparseMatrixBinary() throws IOException {
+        svm_problem problem = new svm_problem();
+        problem.l = instances.size();
+        problem.y = new double[problem.l];
+        problem.x = new svm_node[problem.l][];
+        int i = 0;
+        for (i = 0; i < instances.size(); i++) { //each instance corresponds to a document
+            Instance inst = instances.get(i);
+            FeatureVector tokens = (FeatureVector) inst.getData();
+            int[] indices = tokens.getIndices();
+            double[] values = tokens.getValues();
+            int k;
+
+            svm_node[] x = new svm_node[indices.length];
+            for (k = 0; k < indices.length; k++) {
+                x[k] = new svm_node();
+                x[k].index = indices[k];
+                x[k].value = values[k];
+
+            }
+            problem.y[i] = Double.parseDouble((String) inst.getTarget());
+            problem.x[i] = x;
+        }
+        return problem;
+    }
 }
 
 

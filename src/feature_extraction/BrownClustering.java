@@ -27,11 +27,11 @@ public class BrownClustering {
         instances = inst;
         config = conf;
         mapIDsToClusters = new HashMap<Integer, ArrayList<Integer>>();
-        loadClusters();
+        loadClusters(); //TODO serialize mapIDsToCluster so you don't have to fill it up all the time
     }
 
     /**
-     * loads a file which contains the paths of the words as outputted by wcluster and
+     * loads a file which contains the paths of the words as produced by wcluster and
      * inserts them into the into mapIDsToClusters.
      *
      * @throws IOException
@@ -43,19 +43,18 @@ public class BrownClustering {
         while ((line = clustersFile.readLine()) != null) {
             String[] lineFields = line.split("[\\s]");
             String word = lineFields[1];
-            String cluster = lineFields[0];
+            String cluster = lineFields[0]; //binary representation of the path
             for (int i = 1; i < cluster.length() + 1; i++) {
-                String subcluster = "1"; //add one because some clusters start with 0
+                String subcluster = "1"; //add one because some clusters start with 0 and tit would be hard to convert them to integer
                 subcluster = subcluster + cluster.substring(0, i);
                 //push the integer representation of the the cluster into the map
-                Integer wordID = instances.getAlphabet().lookupIndex(word); //	/** Returns -1 if entry isn't present. */
+                Integer wordID = instances.getAlphabet().lookupIndex(word); //	/** Returns -1 if entry isn't present in the instances. */
                 if (wordID != -1) {
                     if (!mapIDsToClusters.containsKey(wordID)) {
                         mapIDsToClusters.put(wordID, new ArrayList<Integer>());
                     }
-                    mapIDsToClusters.get(wordID).add(Integer.parseInt(subcluster, 2)); //parse the binary representation(2) as int.
+                    mapIDsToClusters.get(wordID).add(Integer.parseInt(subcluster, 2)); //parse the binary representation(2) as int.//use this integer as as the index of the feature. Sparse matrix so it don't matter if there are gaps
                 }
-
             }
         }
     }
@@ -94,7 +93,7 @@ public class BrownClustering {
         problem.l = instances.size();
         problem.y = new double[problem.l];
         problem.x = new svm_node[problem.l][];
-        for (int i = 0; i < instances.size(); i++) {
+        for (int i = 0; i < instances.size(); i++) { //one instance is one document
             Instance inst = instances.get(i);
             FeatureVector tokens = (FeatureVector) inst.getData();
             int[] indices = tokens.getIndices();

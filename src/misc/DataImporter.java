@@ -5,6 +5,8 @@ import cc.mallet.pipe.iterator.CsvIterator;
 import cc.mallet.types.InstanceList;
 
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
@@ -77,12 +79,16 @@ public class DataImporter {
         System.out.println("finished creating instances");
 
         //serialize the InstanceList for later reference
-        FileOutputStream fileOut = new FileOutputStream("instances.ser");
-        ObjectOutputStream out = new ObjectOutputStream(fileOut);
-        out.writeObject(instances);
-        out.close();
-        fileOut.close();
-        System.out.println("finished Serializing instances");
+        if (config.getProperty("data.saveInstances").trim().equalsIgnoreCase("true")) {
+            Path p = Paths.get(config.getProperty("data.input"));
+            String inputFilename = p.getFileName().toString();
+            FileOutputStream fileOut = new FileOutputStream(config.getProperty("general.outputDir") + "/" + inputFilename + "_instances.ser");
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            out.writeObject(instances);
+            out.close();
+            fileOut.close();
+            System.out.println("finished Serializing instances");
+        }
         return instances;
     }
 

@@ -6,9 +6,7 @@ import libsvm.svm_parameter;
 import libsvm.svm_problem;
 import misc.Config;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -29,7 +27,35 @@ public class SVM {
         param = new svm_parameter();
     }
 
-    private static void GenerateLogSpace(int min, int max, int logBins) {
+    public SVM(Config conf){
+        config = conf;
+        param = new svm_parameter();
+        prob = new svm_problem();
+    }
+
+    public void predFileToMeasurements() throws IOException{
+        BufferedReader predFile = new BufferedReader(new FileReader(config.getProperty("data.predictionsFile")));
+        ArrayList<Double> arrayY = new ArrayList<Double>();
+        ArrayList<Double> arrayPred = new ArrayList<Double>();
+        String line;
+        line = predFile.readLine(); //ignore first line = header
+        while ((line = predFile.readLine()) != null) {
+            String[] lineFields = line.split("[\\t]");
+            arrayY.add(Double.parseDouble(lineFields[0]));
+            arrayPred.add(Double.parseDouble(lineFields[1]));
+        }
+        predFile.close();
+        prob.l = arrayPred.size();
+        prob.y = new double[prob.l];
+        double[]  predicted = new double[prob.l];
+        for(int i=0;i<prob.l;i++){
+            prob.y[i] = arrayY.get(i);
+            predicted[i] = arrayPred.get(i);
+        }
+        writeResults(predicted);
+    }
+
+    private static void generateLogSpace(int min, int max, int logBins) {
         double logarithmicBase = Math.E;
         double logMin = Math.log(min);
         double logMax = Math.log(max);
