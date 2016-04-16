@@ -27,32 +27,10 @@ public class SVM {
         param = new svm_parameter();
     }
 
-    public SVM(Config conf){
+    public SVM(Config conf) {
         config = conf;
         param = new svm_parameter();
         prob = new svm_problem();
-    }
-
-    public void predFileToMeasurements() throws IOException{
-        BufferedReader predFile = new BufferedReader(new FileReader(config.getProperty("data.predictionsFile")));
-        ArrayList<Double> arrayY = new ArrayList<Double>();
-        ArrayList<Double> arrayPred = new ArrayList<Double>();
-        String line;
-        line = predFile.readLine(); //ignore first line = header
-        while ((line = predFile.readLine()) != null) {
-            String[] lineFields = line.split("[\\t]");
-            arrayY.add(Double.parseDouble(lineFields[0]));
-            arrayPred.add(Double.parseDouble(lineFields[1]));
-        }
-        predFile.close();
-        prob.l = arrayPred.size();
-        prob.y = new double[prob.l];
-        double[]  predicted = new double[prob.l];
-        for(int i=0;i<prob.l;i++){
-            prob.y[i] = arrayY.get(i);
-            predicted[i] = arrayPred.get(i);
-        }
-        writeResults(predicted);
     }
 
     private static void generateLogSpace(int min, int max, int logBins) {
@@ -69,21 +47,62 @@ public class SVM {
         }
     }
 
+    public void predFileToMeasurements() throws IOException {
+        BufferedReader predFile = new BufferedReader(new FileReader(config.getProperty("data.predictionsFile")));
+        ArrayList<Double> arrayY = new ArrayList<Double>();
+        ArrayList<Double> arrayPred = new ArrayList<Double>();
+        String line;
+        line = predFile.readLine(); //ignore first line = header
+        while ((line = predFile.readLine()) != null) {
+            String[] lineFields = line.split("[\\t]");
+            arrayY.add(Double.parseDouble(lineFields[0]));
+            arrayPred.add(Double.parseDouble(lineFields[1]));
+        }
+        predFile.close();
+        prob.l = arrayPred.size();
+        prob.y = new double[prob.l];
+        double[] predicted = new double[prob.l];
+        for (int i = 0; i < prob.l; i++) {
+            prob.y[i] = arrayY.get(i);
+            predicted[i] = arrayPred.get(i);
+        }
+        writeResults(predicted);
+    }
+
     private void writeResults(double[] predicted) {
         try {
 
             Path p = Paths.get(config.getProperty("data.input"));
             String inputFilename = p.getFileName().toString();
-            BufferedWriter rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
-                    + inputFilename
-                    + "_" + config.getProperty("data.model")
-                    + "_C_" + param.C
-                    + "_predictedValues"));
-            BufferedWriter measurementsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
-                    + inputFilename
-                    + "_" + config.getProperty("data.model")
-                    + "_C_" + param.C
-                    + "_statistics"));
+            Path pBrown = Paths.get(config.getProperty("data.brown.paths"));
+            String brownPathsName = p.getName(p.getNameCount()-1).toString();
+            BufferedWriter rawResultsWriter = null;
+            BufferedWriter measurementsWriter = null;
+            if (config.getProperty("data.model").trim().equals("brown")) {
+                rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + "_C_" + param.C
+                        + brownPathsName
+                        + "_predictedValues"));
+                measurementsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + brownPathsName
+                        + "_C_" + param.C
+                        + "_statistics"));
+            } else {
+                rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + "_C_" + param.C
+                        + "_predictedValues"));
+                measurementsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + "_C_" + param.C
+                        + "_statistics"));
+            }
 
             //calculate and write quality of predictions measurements
             ArrayList<Double> classes = findClasess(); //TODO if number of classes in config file is not set
@@ -218,7 +237,7 @@ public class SVM {
     public void runSVM() {
 
         ///svm train parameters
-        //default parameters
+        //default parameters. Most of them not used or don't change. They only parameter that changes is C.
         param.svm_type = svm_parameter.C_SVC;
         param.kernel_type = svm_parameter.LINEAR;
         param.degree = 3;
@@ -226,7 +245,6 @@ public class SVM {
         param.coef0 = 0;
         param.nu = 0.5;
         param.cache_size = 40;
-        param.C = 1;
         param.eps = 1e-3;
         param.p = 0.1;
         param.shrinking = 1;
@@ -234,6 +252,9 @@ public class SVM {
         param.nr_weight = 0;
         param.weight_label = new int[0];
         param.weight = new double[0];
+        //--
+        param.C = Integer.parseInt(config.getProperty("clf.svm.C", "1"));
+        //---
         //get rest parameters from config file
         //TODO
         //-----
