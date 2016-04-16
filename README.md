@@ -1,27 +1,27 @@
-header
+# SemisupervisedTextClassification
 
-This application has been developed ... (what you write on your CV)
+**In Progress**
 
-Models Used:
-	- Feature Extraction
-		- Binary bag of words
-		- Count bag of words
-		- Brown clustering
-		- Word2Vec
-		- LDA
-		- LSI
-	- Classifiers
-		- linear SVM
+Semi-Supervised Text Classification on Amazon’s product data. Unsupervised extraction
+of word representations, combined with the supervised classification techniques in
+order to predict the product category of reviews.
 
-Usage:
+Author: Sotirios P. Fokeas  
+Date: Mar, 2016
 
-The application can be configured either using command line arguments or a config file. The latter is prefered since it is more consistent and easier to use. 
+Dependencies and libraries used:
+- libSVM java implementation
+- Mallet
+- Dl4j
+- [Brown-Cluster](https://github.com/percyliang/brown-cluster)
+
+Tested With:
+- Java VM version: Java 1.7
+
+Parameters:
+The application can be configured either using command line arguments or a config file. The latter is prefered since it is more consistent and easier to use. An example of a config file is provided above.
+
+Folders & Files:
 
 
-You can read the report.pdf for results and conclusions
 
-
-Libraries Used:
-	- [LibSVM]
-	- [Mallet]
-	-  brown clustering tool
