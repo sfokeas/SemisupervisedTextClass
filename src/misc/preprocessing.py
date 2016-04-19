@@ -14,10 +14,10 @@ import pickle
 #output in the same dir wih name like inputFIle + proprocessed
 
 
-wordTokenizer = RegexpTokenizer("[\w']+")
+#wordTokenizer = RegexpTokenizer("[\w']+")
 
 
-finalOutputFile = open("preprocessed_"+sys.argv[1], 'w')
+finalOutputFile = open(sys.argv[1]+"_preprocessed", 'w')
 reviewsJSONFile = open(sys.argv[1], "r")
 
 linenumber =0
@@ -30,7 +30,13 @@ for line in reviewsJSONFile:
     objJSON = json.loads(line)
     #tokenize and clean the review text
     reviewSTR = objJSON['reviewText']
-    tokens = wordTokenizer.tokenize(reviewSTR.lower())
-    finalOutputFile.write(sys.argv[2]+str(dummy_name)+" " + sys.argv[2] + " " + " ".join(tokens) + "\n") #name label data
+    reviewSTR = ''.join(ch.lower() for ch in reviewSTR if ch not in set(string.digits)) #remove digits and transform to lower case
+    #tokens = wordTokenizer.tokenize(reviewSTR.lower())
+    tokens = word_tokenize(reviewSTR)
+    finalOutputFile.write(sys.argv[2]+
+                          str(dummy_name)+" "
+                          + sys.argv[2] + " "
+                          + ' '.join(token for token in tokens if token not in set(string.punctuation + string.digits))
+                          + "\n") #name label data
     dummy_name+=1
 
