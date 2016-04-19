@@ -72,23 +72,23 @@ public class SVM {
     private void writeResults(double[] predicted) {
         try {
 
-            Path p = Paths.get(config.getProperty("data.input"));
-            String inputFilename = p.getFileName().toString();
+            Path pData = Paths.get(config.getProperty("data.input"));
+            String inputFilename = pData.getFileName().toString();
             Path pBrown = Paths.get(config.getProperty("data.brown.paths"));
-            String brownPathsName = p.getName(p.getNameCount()-1).toString();
+            String brownPathsName = pBrown.getName(pBrown.getNameCount()-1).toString();
             BufferedWriter rawResultsWriter = null;
             BufferedWriter measurementsWriter = null;
             if (config.getProperty("data.model").trim().equals("brown")) {
                 rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
                         + inputFilename
                         + "_" + config.getProperty("data.model")
+                        + "_" + brownPathsName
                         + "_C_" + param.C
-                        + brownPathsName
                         + "_predictedValues"));
                 measurementsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
                         + inputFilename
                         + "_" + config.getProperty("data.model")
-                        + brownPathsName
+                        + "_" + brownPathsName
                         + "_C_" + param.C
                         + "_statistics"));
             } else {
@@ -253,7 +253,7 @@ public class SVM {
         param.weight_label = new int[0];
         param.weight = new double[0];
         //--
-        param.C = Integer.parseInt(config.getProperty("clf.svm.C", "1"));
+        param.C = Double.parseDouble(config.getProperty("clf.svm.C", "1"));
         //---
         //get rest parameters from config file
         //TODO
