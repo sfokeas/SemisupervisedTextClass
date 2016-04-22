@@ -69,16 +69,43 @@ public class SVM {
         writeResults(predicted);
     }
 
-    private void writeResults(double[] predicted) {
+    private void saveModel(svm_model model) {
         try {
-
+            String outputFilename;
             Path pData = Paths.get(config.getProperty("data.input"));
             String inputFilename = pData.getFileName().toString();
-            Path pBrown = Paths.get(config.getProperty("data.brown.paths"));
-            String brownPathsName = pBrown.getName(pBrown.getNameCount()-1).toString();
+            if (config.getProperty("data.model").trim().equals("brown")) {
+                Path pBrown = Paths.get(config.getProperty("data.brown.paths"));
+                String brownPathsName = pBrown.getName(pBrown.getNameCount() - 2).toString();
+                outputFilename = config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + "_" + brownPathsName
+                        + "_C_" + param.C
+                        + ".model";
+            } else {
+                outputFilename = config.getProperty("general.outputDir") + "/"
+                        + inputFilename
+                        + "_" + config.getProperty("data.model")
+                        + "_C_" + param.C
+                        + ".model";
+            }
+            svm.svm_save_model(outputFilename, model);
+        } catch (IOException e) {
+            System.err.println(e.fillInStackTrace());
+            System.err.println(e.getMessage());
+        }
+    }
+
+    private void writeResults(double[] predicted) {
+        try {
+            Path pData = Paths.get(config.getProperty("data.input"));
+            String inputFilename = pData.getFileName().toString();
             BufferedWriter rawResultsWriter = null;
             BufferedWriter measurementsWriter = null;
             if (config.getProperty("data.model").trim().equals("brown")) {
+                Path pBrown = Paths.get(config.getProperty("data.brown.paths"));
+                String brownPathsName = pBrown.getName(pBrown.getNameCount() - 2).toString();
                 rawResultsWriter = new BufferedWriter(new FileWriter(config.getProperty("general.outputDir") + "/"
                         + inputFilename
                         + "_" + config.getProperty("data.model")
@@ -224,11 +251,6 @@ public class SVM {
 //
 //    }
 
-    public void loadFile(String filename) {
-
-    }
-
-
 //
     //check this in svm_predict private static void predict(BufferedReader input, DataOutputStream output, svm_model model, int predict_probability) throws IOException
 
@@ -252,55 +274,30 @@ public class SVM {
         param.nr_weight = 0;
         param.weight_label = new int[0];
         param.weight = new double[0];
-        //--
+        //get rest parameters from config file
         param.C = Double.parseDouble(config.getProperty("clf.svm.C", "1"));
         //---
-        //get rest parameters from config file
-        //TODO
-        //-----
 
         svm_model model = null;
-
-        // train model
+        // cross validation or train or predict
         if (config.getProperty("clf.crossValidation").trim().equalsIgnoreCase("true")) {
             do_cross_validation(Integer.parseInt(config.getProperty("clf.crossValidation.folds")));
-        } else {
+        } else if (config.getProperty("clf.train").trim().equalsIgnoreCase("true")) {
             model = svm.svm_train(prob, param);
+            saveModel(model);
+        } else if (config.getProperty("clf.predict").trim().equalsIgnoreCase("true")) {
+            try {
+                model = svm.svm_load_model(config.getProperty("clf.predict.model").trim());
+
+                double[] target = new double[prob.l];
+                for (int i = 0; i < prob.l; i++) {
+                    target[i] = svm.svm_predict(model, prob.x[i]); //predY just a scalar not a vector of values. Correspond only to one feature vector
+                }
+                writeResults(target);
+            } catch (IOException e) {
+                System.err.println(e.fillInStackTrace());
+                System.err.println(e.getMessage());
+            }
         }
-
-        // if config tuneParameters == true then call tune parameters
-        //
-
-        //use svm savemodel to save the model
-
-        //this is the test data
-        //how to output accuracy?
-
-
-        //predict!
-        //use svm loadmodel to load a saved model if needed
-
-        //use predict
-
-
-//        x[0] = new svm_node();
-//        x[1] = new svm_node();
-//        x[0].index = 1;
-//        x[1].index = 2;
-//
-//        Graphics window_gc = getGraphics();
-//        for (int i = 0; i < XLEN; i++)
-//            for (int j = 0; j < YLEN ; j++) {
-//                x[0].value = (double) i / XLEN;
-//                x[1].value = (double) j / YLEN;
-//                double d = svm.svm_predict(model, x);
-//                if (param.svm_type == svm_parameter.ONE_CLASS && d<0) d=2;
-//                buffer_gc.setColor(colors[(int)d]);
-//                window_gc.setColor(colors[(int)d]);
-//                buffer_gc.drawLine(i,j,i,j);
-//                window_gc.drawLine(i,j,i,j);
-//            }
-//
-//        double d = svm.svm_predict(model, x);
     }
 }
